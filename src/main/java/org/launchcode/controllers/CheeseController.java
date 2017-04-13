@@ -1,18 +1,17 @@
 package org.launchcode.controllers;
 
+import org.launchcode.models.Category;
 import org.launchcode.models.Cheese;
-import org.launchcode.models.CheeseType;
+import org.launchcode.models.data.CategoryDao;
 import org.launchcode.models.data.CheeseDao;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.util.List;
 
 /**
  * Created by LaunchCode
@@ -23,6 +22,9 @@ public class CheeseController {
 
     @Autowired
     private CheeseDao cheeseDao;
+
+    @Autowired
+    private CategoryDao categoryDao;
 
     // Request path: /cheese
     @RequestMapping(value = "")
@@ -38,19 +40,21 @@ public class CheeseController {
     public String displayAddCheeseForm(Model model) {
         model.addAttribute("title", "Add Cheese");
         model.addAttribute(new Cheese());
-        model.addAttribute("cheeseTypes", CheeseType.values());
+        model.addAttribute("categories", categoryDao.findAll());
         return "cheese/add";
     }
 
     @RequestMapping(value = "add", method = RequestMethod.POST)
     public String processAddCheeseForm(@ModelAttribute  @Valid Cheese newCheese,
-                                       Errors errors, Model model) {
+                                       Errors errors, Model model, @RequestParam int categoryId) {
 
         if (errors.hasErrors()) {
             model.addAttribute("title", "Add Cheese");
             return "cheese/add";
         }
 
+        Category cat = categoryDao.findOne(categoryId);
+        newCheese.setCategory(cat);
         cheeseDao.save(newCheese);
         return "redirect:";
     }
@@ -70,6 +74,43 @@ public class CheeseController {
         }
 
         return "redirect:";
+    }
+
+    @RequestMapping(value = "category/{id}", method = RequestMethod.GET)
+    public String displayCheeseByCategory(Model model, @PathVariable long id) {
+
+        int catId = (int) id;
+        Category cat = categoryDao.findOne(catId);
+        List cheeseObjs = cat.getCheeses();
+        //Iterable cheeses = cheeseDao.findAll(cheeseids);
+        model.addAttribute("title", cat.getName() + " Cheeses");
+        model.addAttribute("cheeses", cheeseObjs);
+
+        return "cheese/index";
+    }
+
+    @RequestMapping(value="edit/{id}", method= RequestMethod.GET)
+    public String displayEditForm(Model model, @PathVariable long id) {
+
+        Cheese editedCheese = cheeseDao.findOne( (int) id);
+
+        model.addAttribute("title", "Edit " + editedCheese.getName() + "(id=" + id + ")");
+        model.addAttribute("cheese", editedCheese);
+
+        return "cheese/edit";
+    }
+
+    @RequestMapping(value="edit", method= RequestMethod.POST)
+    public String processEditForm(int cheeseId, String name, String description) {
+
+        Cheese editedCheese = cheeseDao.findOne(cheeseId);
+
+        editedCheese.setName(name);
+        editedCheese.setDescription(description);
+
+        cheeseDao.save(editedCheese);
+
+        return "cheese/index";
     }
 
 }
